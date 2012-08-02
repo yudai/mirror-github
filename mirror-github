@@ -64,11 +64,11 @@ users.each do |user|
     p repo_dir
     if File.exists?(repo_dir)
       Dir.chdir(repo_dir) do
-        system("git fetch")
+        system("git remote update")
       end
     else
       Dir.chdir(user_dir) do
-        system("git clone --bare #{clone_method == :ssh ? repo.ssh_url : repo.clone_url}")
+        system("git clone --mirror #{clone_method == :ssh ? repo.ssh_url : repo.clone_url}")
       end
     end
   end
