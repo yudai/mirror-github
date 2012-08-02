@@ -1,0 +1,76 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'github_api'
+option = {
+  :dir => Dir.pwd,
+  :token_file => File.join(ENV['HOME'], ".mirror_github_token"),
+}
+help_message = ""
+OptionParser.new do |opt|
+  opt.banner = "Usage: #{File.basename($0)} [options] user1 user2 ..."
+  opt.on('-d', '--dir DIRECTORY', 'Directory to save repositories. Default is the current directory.') {|v| option[:dir] = v}
+  opt.on('-t', '--token File', 'File saved oauth2 token. You can generete your token using \'gen-token\' command.') {|v| option[:token_file] = v}
+  help_message = opt.help
+end.parse!
+users = ARGV
+if users.empty?
+  puts "No user/organization name given."
+  puts help_message
+  exit 1
+end
+
+unless system("git --help > /dev/null")
+  puts "git command not found. Aborting..."
+  exit 1
+end
+
+# load token from file if exists and set using ssh to clone repositories
+token = nil
+clone_method = :https
+if File.exists?(option[:token_file])
+  begin
+    File.open(option[:token_file]) do |f|
+      token = f.gets.strip
+    end
+    param = {:oauth_token => token}
+    clone_method = :ssh
+  rescue => e
+    puts e
+    exit 1
+  end
+else
+  param = {}
+end
+
+github = Github.new(param)
+users.each do |user|
+  user_dir = File.join(option[:dir], user)
+  unless File.exists?(user_dir)
+    Dir::mkdir(user_dir)
+  end
+
+  param = {}
+  begin
+    github.orgs.find(user)
+    param = {:org => user}
+  rescue
+    param = {:user => user}
+  end
+
+  repositories = github.repos.all(param)
+  repositories.each do |repo|
+    repo_dir = File.join(user_dir, "#{repo.name}.git")
+    p repo_dir
+    if File.exists?(repo_dir)
+      Dir.chdir(repo_dir) do
+        system("git fetch")
+      end
+    else
+      Dir.chdir(user_dir) do
+        system("git clone --bare #{clone_method == :ssh ? repo.ssh_url : repo.clone_url}")
+      end
+    end
+  end
+end
+

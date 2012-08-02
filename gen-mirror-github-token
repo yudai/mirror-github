@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+
+require 'github_api'
+require 'highline'
+
+h = HighLine.new
+file_default = File.join(ENV['HOME'], ".mirror_github_token")
+file = h.ask("Filename [#{file_default}]: ")
+file = file_default if file == ""
+login = h.ask('User name: ')
+password = h.ask('Password: ') {|q| q.echo = '*' }
+
+begin
+  github = Github.new login: login, password: password
+  r = github.oauth.create 'scopes' => ['repo']
+rescue Github::Error::Unauthorized
+  puts "Invalid user name or password. Aborting..."
+rescue
+  puts "Something wrong happened. Aborting..."
+else
+  begin
+    f = File.open(file, 'w')
+    f.chmod(0600)
+    f.puts r.token
+    f.close
+  rescue => e
+    puts e
+  else
+    puts "Token saved into #{file}"
+  end
+end
