@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
-
 require 'optparse'
 require 'github_api'
+
 option = {
   :dir => Dir.pwd,
   :token_file => File.join(ENV['HOME'], ".mirror_github_token"),
@@ -61,13 +61,14 @@ users.each do |user|
   repositories = github.repos.all(param)
   repositories.each do |repo|
     repo_dir = File.join(user_dir, "#{repo.name}.git")
-    p repo_dir
     if File.exists?(repo_dir)
       Dir.chdir(repo_dir) do
+        puts "Updating #{user}/#{repo.name}... "
         system("git remote update")
       end
     else
       Dir.chdir(user_dir) do
+        puts "Create a new mirror repository #{user}/#{repo.name}... "
         system("git clone --mirror #{clone_method == :ssh ? repo.ssh_url : repo.clone_url}")
       end
     end
